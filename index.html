@@ -43,35 +43,72 @@
 
             <!-- Form Section -->
             <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-gray-200">
-                <h2 class="text-xl font-bold mb-4 text-gray-800 flex items-center" id="formTitle">
-                    <span class="bg-blue-600 w-2 h-6 rounded mr-2"></span> New Service Entry
-                </h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-4 gap-4">
+                    <h2 class="text-xl font-bold text-gray-800 flex items-center" id="formTitle">
+                        <span class="bg-blue-600 w-2 h-6 rounded mr-2"></span> New Service Entry
+                    </h2>
+                    <!-- Wallet Lookup Notice / Status Indicator -->
+                    <div id="walletStatusMsg" class="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg hidden"></div>
+                </div>
+                
                 <form id="serviceForm">
                     <input type="hidden" id="editId" value="">
+                    
+                    <!-- Customer Core Fields (Non-mandatory) -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <input type="text" id="vehicleNo" placeholder="Vehicle Number" class="p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <input type="text" id="ownerName" placeholder="Owner Name" class="p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <input type="tel" id="contactNo" placeholder="Contact Number" class="p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Vehicle Number</label>
+                            <input type="text" id="vehicleNo" placeholder="Vehicle Number" oninput="checkLinkedWallet()" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Owner Name</label>
+                            <input type="text" id="ownerName" placeholder="Owner Name" oninput="checkLinkedWallet()" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Contact Number</label>
+                            <input type="tel" id="contactNo" placeholder="Contact Number" oninput="checkLinkedWallet()" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                     </div>
                     
+                    <!-- Tasks / Repairs Container (Non-mandatory description/price) -->
                     <div id="tasksContainer" class="space-y-2 mb-4">
                         <div class="flex gap-2 task-row">
-                            <input type="text" placeholder="Work Done" class="flex-grow p-2 border rounded-lg outline-none task-desc" required>
-                            <input type="number" placeholder="Price" class="w-32 p-2 border rounded-lg outline-none task-price" onkeydown="handlePriceKey(event)" oninput="calcLiveTotal()" required>
+                            <input type="text" placeholder="Work Done (Optional)" class="flex-grow p-2 border rounded-lg outline-none task-desc">
+                            <input type="number" placeholder="Price" class="w-32 p-2 border rounded-lg outline-none task-price" onkeydown="handlePriceKey(event)" oninput="calcLiveTotal()">
                             <button type="button" onclick="addTaskRow()" class="bg-blue-100 text-blue-600 px-4 rounded-lg font-bold">+</button>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center pt-4 border-t">
+                    <!-- Payment Handling & Wallet Calculations -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4 border-t">
                         <div class="space-y-2">
-                            <div class="flex justify-between text-gray-600"><span>Service Total:</span> <span id="displayTotal">₹0</span></div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-bold text-green-600">Amount Paid: ₹</span>
+                            <div class="flex justify-between text-gray-600 font-medium"><span>Service Total:</span> <span id="displayTotal">₹0</span></div>
+                            
+                            <!-- Wallet Actions Box -->
+                            <div class="bg-gray-50 p-3 rounded-lg border space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-bold text-blue-800">Available Advance Wallet:</span>
+                                    <span class="text-base font-black text-blue-900" id="currentWalletDisplay">₹0</span>
+                                </div>
+                                <div class="flex items-center gap-4 flex-wrap">
+                                    <label class="flex items-center gap-1.5 text-xs font-bold text-gray-600 cursor-pointer">
+                                        <input type="checkbox" id="useWalletCheckbox" onchange="calcLiveTotal()" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                                        Pay Using Customer Wallet Balance
+                                    </label>
+                                    <div class="flex items-center gap-1.5 border-l pl-4">
+                                        <span class="text-xs font-bold text-emerald-600">Add Advance To Wallet: ₹</span>
+                                        <input type="number" id="addToWalletAmount" value="0" oninput="calcLiveTotal()" class="w-24 p-1 border-b bg-transparent font-semibold focus:border-emerald-500 outline-none">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 pt-1">
+                                <span class="text-sm font-bold text-green-700">Cash/Direct Amount Paid: ₹</span>
                                 <input type="number" id="paidAmount" value="0" oninput="calcLiveTotal()" class="w-32 p-1 border-b focus:border-blue-500 outline-none">
                             </div>
-                            <div class="text-lg font-bold text-red-600">Balance Due: ₹<span id="liveBalance">0</span></div>
+                            <div class="text-lg font-bold text-red-600">Net Balance Due: ₹<span id="liveBalance">0</span></div>
                         </div>
-                        <div class="flex gap-2 justify-end">
+                        <div class="flex gap-2 justify-end self-end">
                             <button type="button" id="cancelEdit" onclick="resetForm()" class="hidden bg-gray-200 hover:bg-gray-300 px-6 py-2 rounded-lg font-bold transition">Cancel</button>
                             <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-lg font-bold shadow-lg transition">Save Entry</button>
                         </div>
@@ -104,7 +141,7 @@
                             <th class="p-4 text-xs font-bold text-gray-500 uppercase">Customer/Vehicle</th>
                             <th class="p-4 text-xs font-bold text-gray-500 uppercase">Works List</th>
                             <th class="p-4 text-xs font-bold text-gray-500 uppercase">Total Bill</th>
-                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Paid</th>
+                            <th class="p-4 text-xs font-bold text-gray-500 uppercase">Paid Detail</th>
                             <th class="p-4 text-xs font-bold text-gray-500 uppercase">Balance</th>
                             <th class="p-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
                         </tr>
@@ -140,18 +177,14 @@
             </div>
         </div>
         <table class="w-full mb-8 border-collapse">
-            <thead>
-                <tr class="bg-gray-100 border-b-2 border-gray-300">
-                    <th class="p-3 text-left">Work Description</th>
-                    <th class="p-3 text-right">Price (₹)</th>
-                </tr>
-            </thead>
+            <thead><tr class="bg-gray-100 border-b-2 border-gray-300"><th class="p-3 text-left">Work Description</th><th class="p-3 text-right">Price (₹)</th></tr></thead>
             <tbody id="invTasks" class="divide-y border-b"></tbody>
         </table>
         <div class="flex justify-end">
-            <div class="w-64 space-y-2">
+            <div class="w-72 space-y-2">
                 <div class="flex justify-between"><span>Grand Total:</span> <span class="font-bold" id="invTotal"></span></div>
-                <div class="flex justify-between text-green-700"><span>Paid Amount:</span> <span class="font-bold" id="invPaid"></span></div>
+                <div class="flex justify-between text-blue-700"><span>Paid from Wallet:</span> <span class="font-bold" id="invWalletPaid"></span></div>
+                <div class="flex justify-between text-green-700"><span>Direct Cash Paid:</span> <span class="font-bold" id="invPaid"></span></div>
                 <div class="flex justify-between border-t-2 border-black pt-2 text-xl font-bold text-red-600"><span>Balance Due:</span> <span id="invBalance"></span></div>
             </div>
         </div>
