@@ -31,8 +31,8 @@ function addTaskRow(descValue = '', priceValue = '') {
 // Generates unique structural key identifiers based on provided fields
 function getWalletKey() {
     const vehicle = document.getElementById('vehicleNo').value.trim().toUpperCase();
-    const owner = document.getElementById('ownerName').value.trim().toLowerCase();
     const contact = document.getElementById('contactNo').value.trim();
+    const owner = document.getElementById('ownerName').value.trim().toLowerCase();
     
     if (vehicle) return "VEH_" + vehicle;
     if (contact) return "CON_" + contact;
@@ -49,15 +49,11 @@ function checkLinkedWallet() {
     if (key && wallets[key]) {
         const bal = wallets[key];
         display.textContent = "₹" + bal.toLocaleString('en-IN');
-        if (bal > 0) {
-            msgBox.textContent = `Linked wallet account balance detected: ₹${bal.toLocaleString('en-IN')}`;
-            msgBox.classList.remove('hidden');
-        } else {
-            msgBox.classList.add('hidden');
-        }
+        msgBox.textContent = `Wallet Credit Available: ₹${bal.toLocaleString('en-IN')}`;
+        msgBox.className = "text-sm font-black text-blue-800 bg-blue-100 px-4 py-2 rounded-xl border border-blue-300 animate-pulse";
     } else {
         display.textContent = "₹0";
-        msgBox.classList.add('hidden');
+        msgBox.className = "hidden";
     }
     calcLiveTotal();
 }
@@ -70,15 +66,26 @@ function calcLiveTotal() {
     const walletKey = getWalletKey();
     let availableWallet = (walletKey && wallets[walletKey]) ? wallets[walletKey] : 0;
     
-    let walletDeduction = 0;
-    const useWalletChecked = document.getElementById('useWalletCheckbox').checked;
-    
-    if (useWalletChecked && availableWallet > 0) {
-        if (availableWallet >= total) {
-            walletDeduction = total;
-        } else {
-            walletDeduction = availableWallet;
+    // Reverse old structural values if currently in edit mode to prevent math double-counts
+    const editId = document.getElementById('editId').value;
+    if (editId && walletKey) {
+        const oldRecord = records.find(r => r.id == editId);
+        if (oldRecord && oldRecord.walletKey === walletKey) {
+            availableWallet += (oldRecord.walletDeduction || 0);
+            availableWallet -= (oldRecord.walletDeposit || 0);
         }
+    }
+
+    // Force manual input bounds ceiling checks
+    let manualInputEl = document.getElementById('manualWalletDeduction');
+    let walletDeduction = parseFloat(manualInputEl.value) || 0;
+    
+    if (walletDeduction < 0) walletDeduction = 0;
+    if (walletDeduction > availableWallet) walletDeduction = availableWallet;
+    if (walletDeduction > total) walletDeduction = total;
+    
+    if(manualInputEl && document.activeElement !== manualInputEl) {
+        manualInputEl.value = walletDeduction;
     }
 
     const cashPaid = parseFloat(document.getElementById('paidAmount').value) || 0;
@@ -102,8 +109,7 @@ function resetForm() {
     document.getElementById('submitBtn').textContent = "Save Entry";
     document.getElementById('submitBtn').disabled = false;
     document.getElementById('cancelEdit').classList.add('hidden');
-    document.getElementById('walletStatusMsg').classList.add('hidden');
-    document.getElementById('useWalletCheckbox').checked = false;
+    document.getElementById('walletStatusMsg').className = "hidden";
     document.getElementById('tasksContainer').innerHTML = `
         <div class="flex gap-2 task-row">
             <input type="text" placeholder="Work Done (Optional)" class="flex-grow p-2 border rounded-lg outline-none task-desc">
@@ -126,7 +132,7 @@ document.getElementById('serviceForm').onsubmit = (e) => {
     
     taskDescs.forEach((d, i) => {
         const p = parseFloat(taskPrices[i].value) || 0;
-        const descText = d.value.trim() || "Unspecified Service Component";
+        const descText = d.value.trim() || "Unspecified Maintenance Step";
         if (p > 0 || d.value.trim() !== "") {
             tasks.push({ desc: descText, price: p });
         }
@@ -136,11 +142,9 @@ document.getElementById('serviceForm').onsubmit = (e) => {
     const walletKey = getWalletKey();
     const addToWallet = parseFloat(document.getElementById('addToWalletAmount').value) || 0;
 
-    // Handle wallet logic adjustments
     if (walletKey) {
         if (!wallets[walletKey]) wallets[walletKey] = 0;
         
-        // Reverse old allocation values if editing an existing entry
         if (editId) {
             const oldRecord = records.find(r => r.id == editId);
             if (oldRecord && oldRecord.walletKey === walletKey) {
@@ -149,7 +153,6 @@ document.getElementById('serviceForm').onsubmit = (e) => {
             }
         }
         
-        // Execute financial impacts on running customer balances
         wallets[walletKey] += addToWallet;
         wallets[walletKey] -= finance.walletDeduction;
         localStorage.setItem('vmw_wallets_data', JSON.stringify(wallets));
@@ -201,7 +204,6 @@ function editRecord(id) {
     document.getElementById('contactNo').value = r.contactNo || '';
     document.getElementById('paidAmount').value = r.paidAmount || 0;
     document.getElementById('addToWalletAmount').value = r.walletDeposit || 0;
-    document.getElementById('useWalletCheckbox').checked = (r.walletDeduction > 0);
     
     document.getElementById('formTitle').textContent = "Editing: " + r.vehicleNo;
     document.getElementById('submitBtn').textContent = "Update Record";
@@ -233,6 +235,8 @@ function editRecord(id) {
     }
     
     checkLinkedWallet();
+    document.getElementById('manualWalletDeduction').value = r.walletDeduction || 0;
+    calcLiveTotal();
 }
 
 function printInvoice(id) {
@@ -257,6 +261,11 @@ function printInvoice(id) {
             invTasks.innerHTML += `<tr><td class="p-3">${t.desc}</td><td class="p-3 text-right">₹${t.price.toLocaleString('en-IN')}</td></tr>`;
         });
     }
+    
+    if((r.walletDeposit || 0) > 0) {
+        invTasks.innerHTML += `<tr class="bg-emerald-50 font-semibold"><td class="p-3 text-emerald-800">Advance Deposited to Wallet Account</td><td class="p-3 text-right text-emerald-800">+₹${r.walletDeposit.toLocaleString('en-IN')}</td></tr>`;
+    }
+    
     window.print();
 }
 
@@ -302,7 +311,7 @@ function render() {
                     <td class="p-4">
                         <div class="font-bold text-blue-900">${r.vehicleNo}</div>
                         <div class="text-sm font-semibold text-gray-700">${r.ownerName}</div>
-                        <div class="text-[10px] text-gray-400">${r.contactNo || 'No Contact Number'}</div>
+                        <div class="text-[10px] text-gray-400">${r.contactNo || 'No Contact'}</div>
                     </td>
                     <td class="p-4"><ul class="text-[10px] text-gray-500">${r.tasks.length === 0 ? '<li>• Maintenance</li>' : r.tasks.map(t => `<li>• ${t.desc}</li>`).join('')}</ul></td>
                     <td class="p-4 font-bold text-sm">₹${r.total.toLocaleString('en-IN')}</td>
